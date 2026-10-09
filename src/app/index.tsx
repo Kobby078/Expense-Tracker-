@@ -1,19 +1,22 @@
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AddExpenseModal } from '@/components/add-expense-modal';
 import { ExpenseRow } from '@/components/expense-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { exampleExpenses, MONTHLY_BUDGET, STARTING_BALANCE } from '@/data/example-expenses';
+import {
+  exampleExpenses,
+  MONTHLY_BUDGET,
+  STARTING_BALANCE,
+  type Expense,
+} from '@/data/example-expenses';
 import { useTheme } from '@/hooks/use-theme';
 
 function formatCurrency(amount: number) {
   return `$${amount.toFixed(2)}`;
-}
-
-function showAddExpenseAlert() {
-  Alert.alert('Add Expense', 'Coming in a later milestone');
 }
 
 export default function HomeScreen() {
@@ -24,9 +27,17 @@ export default function HomeScreen() {
   };
   const theme = useTheme();
 
-  const totalSpent = exampleExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const [expenses, setExpenses] = useState(exampleExpenses);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+
+  const totalSpent = expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const currentBalance = STARTING_BALANCE - totalSpent;
   const budgetPercent = Math.min(100, (totalSpent / MONTHLY_BUDGET) * 100);
+
+  function handleSaveExpense(expense: Expense) {
+    setExpenses((current) => [expense, ...current]);
+    setIsFormOpen(false);
+  }
 
   const contentPlatformStyle = Platform.select({
     android: {
@@ -42,61 +53,69 @@ export default function HomeScreen() {
   });
 
   return (
-    <ScrollView
-      style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentInset={insets}
-      contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
-      <ThemedView style={styles.container}>
-        <ThemedText type="subtitle">Expense Tracker</ThemedText>
+    <>
+      <ScrollView
+        style={[styles.scrollView, { backgroundColor: theme.background }]}
+        contentInset={insets}
+        contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
+        <ThemedView style={styles.container}>
+          <ThemedText type="subtitle">Expense Tracker</ThemedText>
 
-        <ThemedView style={styles.summaryRow}>
-          <ThemedView type="backgroundElement" style={styles.summaryCard}>
-            <ThemedText type="small" themeColor="textSecondary">
-              Current balance
-            </ThemedText>
-            <ThemedText type="subtitle">{formatCurrency(currentBalance)}</ThemedText>
+          <ThemedView style={styles.summaryRow}>
+            <ThemedView type="backgroundElement" style={styles.summaryCard}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Current balance
+              </ThemedText>
+              <ThemedText type="subtitle">{formatCurrency(currentBalance)}</ThemedText>
+            </ThemedView>
+            <ThemedView type="backgroundElement" style={styles.summaryCard}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Spent this month
+              </ThemedText>
+              <ThemedText type="subtitle">{formatCurrency(totalSpent)}</ThemedText>
+            </ThemedView>
           </ThemedView>
-          <ThemedView type="backgroundElement" style={styles.summaryCard}>
-            <ThemedText type="small" themeColor="textSecondary">
-              Spent this month
-            </ThemedText>
-            <ThemedText type="subtitle">{formatCurrency(totalSpent)}</ThemedText>
+
+          <ThemedView type="backgroundElement" style={styles.budgetCard}>
+            <ThemedView type="backgroundElement" style={styles.budgetHeader}>
+              <ThemedText type="smallBold">Monthly budget</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {formatCurrency(totalSpent)} / {formatCurrency(MONTHLY_BUDGET)}
+              </ThemedText>
+            </ThemedView>
+            <View style={[styles.progressTrack, { backgroundColor: theme.backgroundSelected }]}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${budgetPercent}%`, backgroundColor: theme.text },
+                ]}
+              />
+            </View>
           </ThemedView>
+
+          <ThemedView style={styles.section}>
+            <ThemedText type="smallBold">Recent expenses</ThemedText>
+            {expenses.map((expense) => (
+              <ExpenseRow key={expense.id} expense={expense} />
+            ))}
+          </ThemedView>
+
+          <Pressable
+            onPress={() => setIsFormOpen(true)}
+            style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}>
+            <ThemedView type="backgroundSelected" style={styles.addButtonInner}>
+              <ThemedText type="smallBold">Add Expense</ThemedText>
+            </ThemedView>
+          </Pressable>
         </ThemedView>
+      </ScrollView>
 
-        <ThemedView type="backgroundElement" style={styles.budgetCard}>
-          <ThemedView type="backgroundElement" style={styles.budgetHeader}>
-            <ThemedText type="smallBold">Monthly budget</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {formatCurrency(totalSpent)} / {formatCurrency(MONTHLY_BUDGET)}
-            </ThemedText>
-          </ThemedView>
-          <View style={[styles.progressTrack, { backgroundColor: theme.backgroundSelected }]}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${budgetPercent}%`, backgroundColor: theme.text },
-              ]}
-            />
-          </View>
-        </ThemedView>
-
-        <ThemedView style={styles.section}>
-          <ThemedText type="smallBold">Recent expenses</ThemedText>
-          {exampleExpenses.map((expense) => (
-            <ExpenseRow key={expense.id} expense={expense} />
-          ))}
-        </ThemedView>
-
-        <Pressable
-          onPress={showAddExpenseAlert}
-          style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}>
-          <ThemedView type="backgroundSelected" style={styles.addButtonInner}>
-            <ThemedText type="smallBold">Add Expense</ThemedText>
-          </ThemedView>
-        </Pressable>
-      </ThemedView>
-    </ScrollView>
+      <AddExpenseModal
+        visible={isFormOpen}
+        onCancel={() => setIsFormOpen(false)}
+        onSave={handleSaveExpense}
+      />
+    </>
   );
 }
 
