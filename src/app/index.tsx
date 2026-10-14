@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddExpenseModal } from '@/components/add-expense-modal';
@@ -13,6 +13,7 @@ import {
   STARTING_BALANCE,
   type Expense,
 } from '@/data/example-expenses';
+import { loadExpenses, saveExpenses } from '@/data/expense-storage';
 import { useTheme } from '@/hooks/use-theme';
 
 function formatCurrency(amount: number) {
@@ -27,8 +28,34 @@ export default function HomeScreen() {
   };
   const theme = useTheme();
 
-  const [expenses, setExpenses] = useState(exampleExpenses);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
+
+  useEffect(() => {
+    async function loadSavedExpenses() {
+      try {
+        const savedExpenses = await loadExpenses();
+        setExpenses(savedExpenses ?? exampleExpenses);
+      } catch {
+        setExpenses(exampleExpenses);
+      } finally {
+        setIsLoaded(true);
+      }
+    }
+
+    loadSavedExpenses();
+  }, []);
+
+  useEffect(() => {
+    if (!isLoaded) {
+      return;
+    }
+
+    saveExpenses(expenses).catch(() => {
+      // Keep the UI usable even if saving fails once.
+    });
+  }, [expenses, isLoaded]);
 
   const totalSpent = expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const currentBalance = STARTING_BALANCE - totalSpent;
@@ -51,6 +78,17 @@ export default function HomeScreen() {
       paddingBottom: Spacing.four,
     },
   });
+
+  if (!isLoaded) {
+    return (
+      <ThemedView style={styles.loadingScreen}>
+        <ActivityIndicator color={theme.text} />
+        <ThemedText type="small" themeColor="textSecondary">
+          Loading expenses…
+        </ThemedText>
+      </ThemedView>
+    );
+  }
 
   return (
     <>
@@ -120,6 +158,12 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadingScreen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.three,
+  },
   scrollView: {
     flex: 1,
   },
