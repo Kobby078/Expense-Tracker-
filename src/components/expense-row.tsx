@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -7,23 +7,28 @@ import type { Expense } from '@/data/example-expenses';
 
 type ExpenseRowProps = {
   expense: Expense;
+  onPress: (expense: Expense) => void;
 };
 
 function formatCurrency(amount: number) {
   return `$${amount.toFixed(2)}`;
 }
 
-export function ExpenseRow({ expense }: ExpenseRowProps) {
+export function ExpenseRow({ expense, onPress }: ExpenseRowProps) {
   return (
-    <ThemedView type="backgroundElement" style={styles.row}>
-      <ThemedView type="backgroundElement" style={styles.details}>
-        <ThemedText type="smallBold">{expense.name}</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {expense.category}
-        </ThemedText>
+    <Pressable
+      onPress={() => onPress(expense)}
+      style={({ pressed }) => [pressed && styles.pressed]}>
+      <ThemedView type="backgroundElement" style={styles.row}>
+        <ThemedView type="backgroundElement" style={styles.details}>
+          <ThemedText type="smallBold">{expense.name}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {expense.category}
+          </ThemedText>
+        </ThemedView>
+        <ThemedText type="smallBold">{formatCurrency(expense.amount)}</ThemedText>
       </ThemedView>
-      <ThemedText type="smallBold">{formatCurrency(expense.amount)}</ThemedText>
-    </ThemedView>
+    </Pressable>
   );
 }
 
@@ -40,5 +45,8 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: Spacing.two,
     gap: Spacing.half,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

@@ -31,6 +31,7 @@ export default function HomeScreen() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
 
   useEffect(() => {
     async function loadSavedExpenses() {
@@ -61,9 +62,37 @@ export default function HomeScreen() {
   const currentBalance = STARTING_BALANCE - totalSpent;
   const budgetPercent = Math.min(100, (totalSpent / MONTHLY_BUDGET) * 100);
 
-  function handleSaveExpense(expense: Expense) {
-    setExpenses((current) => [expense, ...current]);
+  function closeForm() {
     setIsFormOpen(false);
+    setSelectedExpense(null);
+  }
+
+  function handleOpenAdd() {
+    setSelectedExpense(null);
+    setIsFormOpen(true);
+  }
+
+  function handleOpenEdit(expense: Expense) {
+    setSelectedExpense(expense);
+    setIsFormOpen(true);
+  }
+
+  function handleSaveExpense(expense: Expense) {
+    setExpenses((current) => {
+      const alreadyExists = current.some((item) => item.id === expense.id);
+
+      if (alreadyExists) {
+        return current.map((item) => (item.id === expense.id ? expense : item));
+      }
+
+      return [expense, ...current];
+    });
+    closeForm();
+  }
+
+  function handleDeleteExpense(id: string) {
+    setExpenses((current) => current.filter((item) => item.id !== id));
+    closeForm();
   }
 
   const contentPlatformStyle = Platform.select({
@@ -134,12 +163,12 @@ export default function HomeScreen() {
           <ThemedView style={styles.section}>
             <ThemedText type="smallBold">Recent expenses</ThemedText>
             {expenses.map((expense) => (
-              <ExpenseRow key={expense.id} expense={expense} />
+              <ExpenseRow key={expense.id} expense={expense} onPress={handleOpenEdit} />
             ))}
           </ThemedView>
 
           <Pressable
-            onPress={() => setIsFormOpen(true)}
+            onPress={handleOpenAdd}
             style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}>
             <ThemedView type="backgroundSelected" style={styles.addButtonInner}>
               <ThemedText type="smallBold">Add Expense</ThemedText>
@@ -150,8 +179,10 @@ export default function HomeScreen() {
 
       <AddExpenseModal
         visible={isFormOpen}
-        onCancel={() => setIsFormOpen(false)}
+        expenseToEdit={selectedExpense}
+        onCancel={closeForm}
         onSave={handleSaveExpense}
+        onDelete={handleDeleteExpense}
       />
     </>
   );
