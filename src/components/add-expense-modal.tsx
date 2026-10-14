@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -38,11 +37,14 @@ export function AddExpenseModal({
   const [category, setCategory] = useState('');
   const [amountText, setAmountText] = useState('');
   const [error, setError] = useState('');
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (!visible) {
       return;
     }
+
+    setIsConfirmingDelete(false);
 
     if (expenseToEdit) {
       setName(expenseToEdit.name);
@@ -63,6 +65,7 @@ export function AddExpenseModal({
     setCategory('');
     setAmountText('');
     setError('');
+    setIsConfirmingDelete(false);
   }
 
   function handleCancel() {
@@ -105,17 +108,19 @@ export function AddExpenseModal({
       return;
     }
 
-    Alert.alert('Delete expense?', 'This expense will be removed from your list.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          onDelete(expenseToEdit.id);
-          clearForm();
-        },
-      },
-    ]);
+    // Confirm inside the modal instead of Alert.alert.
+    // Alert is unreliable on web and can fail when used with Modal on iOS.
+    setIsConfirmingDelete(true);
+  }
+
+  function handleConfirmDelete() {
+    if (!expenseToEdit) {
+      return;
+    }
+
+    const idToDelete = expenseToEdit.id;
+    clearForm();
+    onDelete(idToDelete);
   }
 
   const inputStyle = [
@@ -201,7 +206,7 @@ export function AddExpenseModal({
             </Pressable>
           </View>
 
-          {isEditing ? (
+          {isEditing && !isConfirmingDelete ? (
             <Pressable
               onPress={handleDeletePress}
               style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}>
@@ -209,6 +214,32 @@ export function AddExpenseModal({
                 Delete Expense
               </ThemedText>
             </Pressable>
+          ) : null}
+
+          {isEditing && isConfirmingDelete ? (
+            <View style={styles.confirmDelete}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Delete this expense? This cannot be undone.
+              </ThemedText>
+              <View style={styles.actions}>
+                <Pressable
+                  onPress={() => setIsConfirmingDelete(false)}
+                  style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}>
+                  <ThemedView type="backgroundSelected" style={styles.actionButtonInner}>
+                    <ThemedText type="smallBold">Keep</ThemedText>
+                  </ThemedView>
+                </Pressable>
+                <Pressable
+                  onPress={handleConfirmDelete}
+                  style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}>
+                  <ThemedView type="backgroundSelected" style={styles.actionButtonInner}>
+                    <ThemedText type="smallBold" style={styles.deleteText}>
+                      Yes, delete
+                    </ThemedText>
+                  </ThemedView>
+                </Pressable>
+              </View>
+            </View>
           ) : null}
         </ThemedView>
       </KeyboardAvoidingView>
@@ -262,6 +293,9 @@ const styles = StyleSheet.create({
   },
   deleteText: {
     color: '#C62828',
+  },
+  confirmDelete: {
+    gap: Spacing.two,
   },
   pressed: {
     opacity: 0.7,
