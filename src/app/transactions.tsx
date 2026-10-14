@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, StyleSheet } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddExpenseModal } from '@/components/add-expense-modal';
@@ -10,6 +18,49 @@ import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useExpenses } from '@/context/expenses-context';
 import type { Expense } from '@/data/example-expenses';
 import { useTheme } from '@/hooks/use-theme';
+
+type SortOption = 'newest' | 'oldest' | 'highest' | 'lowest';
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
+  { value: 'highest', label: 'Highest' },
+  { value: 'lowest', label: 'Lowest' },
+];
+
+function getDisplayedExpenses(
+  expenses: Expense[],
+  searchQuery: string,
+  selectedCategory: string,
+  sortOption: SortOption
+) {
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const activeCategory = selectedCategory === 'All' ? 'All' : selectedCategory;
+
+  const filtered = expenses.filter((expense) => {
+    const matchesSearch =
+      normalizedQuery.length === 0 ||
+      expense.name.toLowerCase().includes(normalizedQuery) ||
+      expense.category.toLowerCase().includes(normalizedQuery);
+
+    const matchesCategory = activeCategory === 'All' || expense.category === activeCategory;
+
+    return matchesSearch && matchesCategory;
+  });
+
+  const sorted = [...filtered];
+
+  if (sortOption === 'oldest') {
+    sorted.reverse();
+  } else if (sortOption === 'highest') {
+    sorted.sort((a, b) => b.amount - a.amount);
+  } else if (sortOption === 'lowest') {
+    sorted.sort((a, b) => a.amount - b.amount);
+  }
+
+  // 'newest' keeps Context order (already newest first)
+  return sorted;
+}
 
 export default function TransactionsScreen() {
   const safeAreaInsets = useSafeAreaInsets();
@@ -22,6 +73,22 @@ export default function TransactionsScreen() {
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [sortOption, setSortOption] = useState<SortOption>('newest');
+
+  const categories = [
+    'All',
+    ...Array.from(new Set(expenses.map((expense) => expense.category))).sort(),
+  ];
+
+  const activeCategory = categories.includes(selectedCategory) ? selectedCategory : 'All';
+  const displayedExpenses = getDisplayedExpenses(
+    expenses,
+    searchQuery,
+    activeCategory,
+    sortOption
+  );
 
   function closeForm() {
     setIsFormOpen(false);
@@ -76,16 +143,84 @@ export default function TransactionsScreen() {
         <ThemedView style={styles.container}>
           <ThemedText type="subtitle">Transactions</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            Full expense history, newest first.
+            Search, filter, and sort your expense history.
           </ThemedText>
+
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search name or category"
+            placeholderTextColor={theme.textSecondary}
+            style={[
+              styles.searchInput,
+              {
+                color: theme.text,
+                backgroundColor: theme.backgroundElement,
+                borderColor: theme.backgroundSelected,
+              },
+            ]}
+            autoCapitalize="none"
+            autoCorrect={false}
+            clearButtonMode="while-editing"
+          />
+
+          <View style={styles.controlBlock}>
+            <ThemedText type="smallBold">Category</ThemedText>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.chipRow}>
+                {categories.map((category) => {
+                  const isActive = activeCategory === category;
+                  return (
+                    <Pressable
+                      key={category}
+                      onPress={() => setSelectedCategory(category)}
+                      style={({ pressed }) => [pressed && styles.pressed]}>
+                      <ThemedView
+                        type={isActive ? 'backgroundSelected' : 'backgroundElement'}
+                        style={styles.chip}>
+                        <ThemedText type="small">{category}</ThemedText>
+                      </ThemedView>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          </View>
+
+          <View style={styles.controlBlock}>
+            <ThemedText type="smallBold">Sort</ThemedText>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.chipRow}>
+                {SORT_OPTIONS.map((option) => {
+                  const isActive = sortOption === option.value;
+                  return (
+                    <Pressable
+                      key={option.value}
+                      onPress={() => setSortOption(option.value)}
+                      style={({ pressed }) => [pressed && styles.pressed]}>
+                      <ThemedView
+                        type={isActive ? 'backgroundSelected' : 'backgroundElement'}
+                        style={styles.chip}>
+                        <ThemedText type="small">{option.label}</ThemedText>
+                      </ThemedView>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          </View>
 
           <ThemedView style={styles.section}>
             {expenses.length === 0 ? (
               <ThemedText type="small" themeColor="textSecondary">
                 No expenses yet. Add one from the Home tab.
               </ThemedText>
+            ) : displayedExpenses.length === 0 ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                No expenses match your search or filters.
+              </ThemedText>
             ) : (
-              expenses.map((expense) => (
+              displayedExpenses.map((expense) => (
                 <ExpenseRow key={expense.id} expense={expense} onPress={handleOpenEdit} />
               ))
             )}
@@ -125,7 +260,29 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.four,
     gap: Spacing.three,
   },
+  searchInput: {
+    borderWidth: 1,
+    borderRadius: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    fontSize: 16,
+  },
+  controlBlock: {
+    gap: Spacing.two,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  chip: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.three,
+  },
   section: {
     gap: Spacing.two,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });
