@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -7,14 +7,11 @@ import { ExpenseRow } from '@/components/expense-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import {
-  exampleExpenses,
-  MONTHLY_BUDGET,
-  STARTING_BALANCE,
-  type Expense,
-} from '@/data/example-expenses';
-import { loadExpenses, saveExpenses } from '@/data/expense-storage';
+import { useExpenses } from '@/context/expenses-context';
+import { MONTHLY_BUDGET, STARTING_BALANCE, type Expense } from '@/data/example-expenses';
 import { useTheme } from '@/hooks/use-theme';
+
+const RECENT_EXPENSE_COUNT = 3;
 
 function formatCurrency(amount: number) {
   return `$${amount.toFixed(2)}`;
@@ -27,37 +24,12 @@ export default function HomeScreen() {
     bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
   };
   const theme = useTheme();
+  const { expenses, isLoaded, upsertExpense, deleteExpense } = useExpenses();
 
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
 
-  useEffect(() => {
-    async function loadSavedExpenses() {
-      try {
-        const savedExpenses = await loadExpenses();
-        setExpenses(savedExpenses ?? exampleExpenses);
-      } catch {
-        setExpenses(exampleExpenses);
-      } finally {
-        setIsLoaded(true);
-      }
-    }
-
-    loadSavedExpenses();
-  }, []);
-
-  useEffect(() => {
-    if (!isLoaded) {
-      return;
-    }
-
-    saveExpenses(expenses).catch(() => {
-      // Keep the UI usable even if saving fails once.
-    });
-  }, [expenses, isLoaded]);
-
+  const recentExpenses = expenses.slice(0, RECENT_EXPENSE_COUNT);
   const totalSpent = expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const currentBalance = STARTING_BALANCE - totalSpent;
   const budgetPercent = Math.min(100, (totalSpent / MONTHLY_BUDGET) * 100);
@@ -78,20 +50,12 @@ export default function HomeScreen() {
   }
 
   function handleSaveExpense(expense: Expense) {
-    setExpenses((current) => {
-      const alreadyExists = current.some((item) => item.id === expense.id);
-
-      if (alreadyExists) {
-        return current.map((item) => (item.id === expense.id ? expense : item));
-      }
-
-      return [expense, ...current];
-    });
+    upsertExpense(expense);
     closeForm();
   }
 
   function handleDeleteExpense(id: string) {
-    setExpenses((current) => current.filter((item) => item.id !== id));
+    deleteExpense(id);
     closeForm();
   }
 
@@ -162,7 +126,7 @@ export default function HomeScreen() {
 
           <ThemedView style={styles.section}>
             <ThemedText type="smallBold">Recent expenses</ThemedText>
-            {expenses.map((expense) => (
+            {recentExpenses.map((expense) => (
               <ExpenseRow key={expense.id} expense={expense} onPress={handleOpenEdit} />
             ))}
           </ThemedView>
