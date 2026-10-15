@@ -1,4 +1,5 @@
-import { ActivityIndicator, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -7,6 +8,13 @@ import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useExpenses } from '@/context/expenses-context';
 import type { Expense } from '@/data/example-expenses';
 import { useTheme } from '@/hooks/use-theme';
+import {
+  addMonthsToYearMonth,
+  formatMonthName,
+  formatYearMonthLabel,
+  getCurrentYearMonth,
+  isExpenseInYearMonth,
+} from '@/utils/local-date';
 
 function formatCurrency(amount: number) {
   return `$${amount.toFixed(2)}`;
@@ -32,6 +40,34 @@ function getCategoryTotals(expenses: Expense[]): CategoryTotal[] {
     .sort((a, b) => b.total - a.total);
 }
 
+function getMonthOverMonthMessage(
+  selectedTotal: number,
+  previousTotal: number,
+  previousYearMonth: string
+): string {
+  const previousMonthName = formatMonthName(previousYearMonth);
+
+  if (previousTotal === 0 && selectedTotal === 0) {
+    return `No spending in ${previousMonthName}`;
+  }
+
+  if (previousTotal === 0 && selectedTotal > 0) {
+    return `No spending in ${previousMonthName}`;
+  }
+
+  if (selectedTotal === previousTotal) {
+    return `Same as ${previousMonthName}`;
+  }
+
+  const percentChange = Math.abs(((selectedTotal - previousTotal) / previousTotal) * 100);
+
+  if (selectedTotal < previousTotal) {
+    return `${formatPercent(percentChange)} less than ${previousMonthName}`;
+  }
+
+  return `${formatPercent(percentChange)} more than ${previousMonthName}`;
+}
+
 export default function AnalyticsScreen() {
   const safeAreaInsets = useSafeAreaInsets();
   const insets = {
@@ -40,6 +76,8 @@ export default function AnalyticsScreen() {
   };
   const theme = useTheme();
   const { expenses, isLoaded } = useExpenses();
+  const currentYearMonth = getCurrentYearMonth();
+  const [selectedYearMonth, setSelectedYearMonth] = useState(currentYearMonth);
 
   const contentPlatformStyle = Platform.select({
     android: {
@@ -65,16 +103,52 @@ export default function AnalyticsScreen() {
     );
   }
 
-  const hasExpenses = expenses.length > 0;
-  const totalSpent = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const expenseCount = expenses.length;
-  const averageAmount = hasExpenses ? totalSpent / expenseCount : 0;
-  const largestExpense = hasExpenses
-    ? expenses.reduce((largest, expense) =>
+  // YYYY-MM strings compare lexicographically in calendar order.
+  const isAtOrPastCurrentMonth = selectedYearMonth >= currentYearMonth;
+  const isViewingCurrentMonth = selectedYearMonth === currentYearMonth;
+  const previousYearMonth = addMonthsToYearMonth(selectedYearMonth, -1);
+
+  const monthExpenses = expenses.filter((expense) =>
+    isExpenseInYearMonth(expense.date, selectedYearMonth)
+  );
+  const previousMonthExpenses = expenses.filter((expense) =>
+    isExpenseInYearMonth(expense.date, previousYearMonth)
+  );
+
+  const selectedTotal = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const previousTotal = previousMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const expenseCount = monthExpenses.length;
+  const hasMonthExpenses = expenseCount > 0;
+  const averageAmount = hasMonthExpenses ? selectedTotal / expenseCount : 0;
+  const largestExpense = hasMonthExpenses
+    ? monthExpenses.reduce((largest, expense) =>
         expense.amount > largest.amount ? expense : largest
       )
     : null;
-  const categoryTotals = getCategoryTotals(expenses);
+  const categoryTotals = getCategoryTotals(monthExpenses);
+  const comparisonMessage = getMonthOverMonthMessage(
+    selectedTotal,
+    previousTotal,
+    previousYearMonth
+  );
+
+  function goToPreviousMonth() {
+    setSelectedYearMonth((current) => addMonthsToYearMonth(current, -1));
+  }
+
+  function goToNextMonth() {
+    if (isAtOrPastCurrentMonth) {
+      return;
+    }
+    setSelectedYearMonth((current) => {
+      const next = addMonthsToYearMonth(current, 1);
+      return next > currentYearMonth ? currentYearMonth : next;
+    });
+  }
+
+  function goToCurrentMonth() {
+    setSelectedYearMonth(currentYearMonth);
+  }
 
   return (
     <ScrollView
@@ -84,82 +158,143 @@ export default function AnalyticsScreen() {
       <ThemedView style={styles.container}>
         <ThemedText type="subtitle">Analytics</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          Summary of all saved expenses.
+          Browse spending by month.
         </ThemedText>
 
-        {!hasExpenses ? (
+        <ThemedView type="backgroundElement" style={styles.monthNav}>
+          <View style={styles.monthNavButtons}>
+            <Pressable
+              onPress={goToPreviousMonth}
+              style={({ pressed }) => [styles.navButton, pressed && styles.pressed]}>
+              <ThemedView type="backgroundSelected" style={styles.navButtonInner}>
+                <ThemedText type="smallBold">Previous</ThemedText>
+              </ThemedView>
+            </Pressable>
+            <Pressable
+              onPress={goToNextMonth}
+              disabled={isAtOrPastCurrentMonth}
+              style={({ pressed }) => [
+                styles.navButton,
+                pressed && !isAtOrPastCurrentMonth && styles.pressed,
+                isAtOrPastCurrentMonth && styles.navButtonDisabled,
+              ]}>
+              <ThemedView type="backgroundSelected" style={styles.navButtonInner}>
+                <ThemedText
+                  type="smallBold"
+                  themeColor={isAtOrPastCurrentMonth ? 'textSecondary' : 'text'}>
+                  Next
+                </ThemedText>
+              </ThemedView>
+            </Pressable>
+          </View>
+
+          <ThemedText type="smallBold" style={styles.monthHeading}>
+            {formatYearMonthLabel(selectedYearMonth)}
+          </ThemedText>
+
+          {!isViewingCurrentMonth ? (
+            <Pressable
+              onPress={goToCurrentMonth}
+              style={({ pressed }) => [pressed && styles.pressed]}>
+              <ThemedText type="small" style={styles.thisMonthLink}>
+                This month
+              </ThemedText>
+            </Pressable>
+          ) : null}
+        </ThemedView>
+
+        {expenses.length === 0 ? (
           <ThemedView type="backgroundElement" style={styles.emptyCard}>
             <ThemedText type="smallBold">No expenses yet</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              Add expenses from the Home tab to see totals, averages, and category breakdowns here.
+              Add expenses from the Home tab. You can still move between months above.
             </ThemedText>
           </ThemedView>
-        ) : (
-          <>
-            <ThemedView style={styles.summaryGrid}>
-              <ThemedView type="backgroundElement" style={styles.summaryCard}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Total spent
-                </ThemedText>
-                <ThemedText type="smallBold">{formatCurrency(totalSpent)}</ThemedText>
-              </ThemedView>
-              <ThemedView type="backgroundElement" style={styles.summaryCard}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Expenses
-                </ThemedText>
-                <ThemedText type="smallBold">{expenseCount}</ThemedText>
-              </ThemedView>
-              <ThemedView type="backgroundElement" style={styles.summaryCard}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Average
-                </ThemedText>
-                <ThemedText type="smallBold">{formatCurrency(averageAmount)}</ThemedText>
-              </ThemedView>
-              <ThemedView type="backgroundElement" style={styles.summaryCard}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Largest
-                </ThemedText>
-                <ThemedText type="smallBold">
-                  {largestExpense ? formatCurrency(largestExpense.amount) : '—'}
-                </ThemedText>
-                {largestExpense ? (
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {largestExpense.name}
-                  </ThemedText>
-                ) : null}
-              </ThemedView>
-            </ThemedView>
+        ) : null}
 
-            <ThemedView style={styles.section}>
-              <ThemedText type="smallBold">Spending by category</ThemedText>
-              {categoryTotals.map((item) => {
-                const percent = totalSpent > 0 ? (item.total / totalSpent) * 100 : 0;
+        <ThemedView style={styles.summaryGrid}>
+          <ThemedView type="backgroundElement" style={styles.summaryCard}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Total spent
+            </ThemedText>
+            <ThemedText type="smallBold">{formatCurrency(selectedTotal)}</ThemedText>
+          </ThemedView>
+          <ThemedView type="backgroundElement" style={styles.summaryCard}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Transactions
+            </ThemedText>
+            <ThemedText type="smallBold">{expenseCount}</ThemedText>
+          </ThemedView>
+          <ThemedView type="backgroundElement" style={styles.summaryCard}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Average
+            </ThemedText>
+            <ThemedText type="smallBold">
+              {hasMonthExpenses ? formatCurrency(averageAmount) : '—'}
+            </ThemedText>
+          </ThemedView>
+          <ThemedView type="backgroundElement" style={styles.summaryCard}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Largest
+            </ThemedText>
+            <ThemedText type="smallBold">
+              {largestExpense ? formatCurrency(largestExpense.amount) : '—'}
+            </ThemedText>
+            {largestExpense ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                {largestExpense.name}
+              </ThemedText>
+            ) : null}
+          </ThemedView>
+        </ThemedView>
 
-                return (
-                  <ThemedView
-                    key={item.category}
-                    type="backgroundElement"
-                    style={styles.categoryCard}>
-                    <View style={styles.categoryHeader}>
-                      <ThemedText type="smallBold">{item.category}</ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {formatCurrency(item.total)} · {formatPercent(percent)}
-                      </ThemedText>
-                    </View>
-                    <View style={[styles.barTrack, { backgroundColor: theme.backgroundSelected }]}>
-                      <View
-                        style={[
-                          styles.barFill,
-                          { width: `${percent}%`, backgroundColor: theme.text },
-                        ]}
-                      />
-                    </View>
-                  </ThemedView>
-                );
-              })}
+        <ThemedView type="backgroundElement" style={styles.comparisonCard}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Compared with {formatMonthName(previousYearMonth)}
+          </ThemedText>
+          <ThemedText type="smallBold">{comparisonMessage}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Previous month total: {formatCurrency(previousTotal)}
+          </ThemedText>
+        </ThemedView>
+
+        <ThemedView style={styles.section}>
+          <ThemedText type="smallBold">Spending by category</ThemedText>
+          {!hasMonthExpenses ? (
+            <ThemedView type="backgroundElement" style={styles.emptyCard}>
+              <ThemedText type="small" themeColor="textSecondary">
+                No expenses in {formatYearMonthLabel(selectedYearMonth)}. Try another month or add
+                one from Home.
+              </ThemedText>
             </ThemedView>
-          </>
-        )}
+          ) : (
+            categoryTotals.map((item) => {
+              const percent = selectedTotal > 0 ? (item.total / selectedTotal) * 100 : 0;
+
+              return (
+                <ThemedView
+                  key={item.category}
+                  type="backgroundElement"
+                  style={styles.categoryCard}>
+                  <View style={styles.categoryHeader}>
+                    <ThemedText type="smallBold">{item.category}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {formatCurrency(item.total)} · {formatPercent(percent)}
+                    </ThemedText>
+                  </View>
+                  <View style={[styles.barTrack, { backgroundColor: theme.backgroundSelected }]}>
+                    <View
+                      style={[
+                        styles.barFill,
+                        { width: `${percent}%`, backgroundColor: theme.text },
+                      ]}
+                    />
+                  </View>
+                </ThemedView>
+              );
+            })
+          )}
+        </ThemedView>
       </ThemedView>
     </ScrollView>
   );
@@ -186,6 +321,33 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.four,
     gap: Spacing.three,
   },
+  monthNav: {
+    gap: Spacing.two,
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
+  },
+  monthNavButtons: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  navButton: {
+    flex: 1,
+  },
+  navButtonInner: {
+    alignItems: 'center',
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.two,
+  },
+  navButtonDisabled: {
+    opacity: 0.5,
+  },
+  monthHeading: {
+    textAlign: 'center',
+  },
+  thisMonthLink: {
+    textAlign: 'center',
+    color: '#3c87f7',
+  },
   emptyCard: {
     gap: Spacing.two,
     padding: Spacing.three,
@@ -199,6 +361,11 @@ const styles = StyleSheet.create({
   summaryCard: {
     width: '48%',
     flexGrow: 1,
+    gap: Spacing.one,
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
+  },
+  comparisonCard: {
     gap: Spacing.one,
     padding: Spacing.three,
     borderRadius: Spacing.three,
@@ -225,5 +392,8 @@ const styles = StyleSheet.create({
   barFill: {
     height: '100%',
     borderRadius: Spacing.one,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

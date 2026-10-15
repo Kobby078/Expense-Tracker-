@@ -39,3 +39,33 @@ export function isValidLocalDateString(value: string): boolean {
 export function isExpenseInYearMonth(expenseDate: string, yearMonth: string): boolean {
   return expenseDate.startsWith(yearMonth);
 }
+
+function parseYearMonth(yearMonth: string): { year: number; monthIndex: number } {
+  const [yearText, monthText] = yearMonth.split('-');
+  return {
+    year: Number(yearText),
+    monthIndex: Number(monthText) - 1,
+  };
+}
+
+export function addMonthsToYearMonth(yearMonth: string, delta: number): string {
+  const { year, monthIndex } = parseYearMonth(yearMonth);
+  const shifted = new Date(year, monthIndex + delta, 1);
+  const nextYear = shifted.getFullYear();
+  const nextMonth = String(shifted.getMonth() + 1).padStart(2, '0');
+  return `${nextYear}-${nextMonth}`;
+}
+
+/** Turns "2026-10" into "October 2026". */
+export function formatYearMonthLabel(yearMonth: string): string {
+  const { year, monthIndex } = parseYearMonth(yearMonth);
+  const labelDate = new Date(year, monthIndex, 1);
+  return labelDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+/** Turns "2026-10" into "October" for comparison sentences. */
+export function formatMonthName(yearMonth: string): string {
+  const { year, monthIndex } = parseYearMonth(yearMonth);
+  const labelDate = new Date(year, monthIndex, 1);
+  return labelDate.toLocaleDateString('en-US', { month: 'long' });
+}
