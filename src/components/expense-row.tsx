@@ -25,6 +25,9 @@ export function ExpenseRow({ expense, onPress }: ExpenseRowProps) {
           <ThemedText type="small" themeColor="textSecondary">
             {expense.category}
           </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {expense.date}
+          </ThemedText>
         </ThemedView>
         <ThemedText type="smallBold">{formatCurrency(expense.amount)}</ThemedText>
       </ThemedView>

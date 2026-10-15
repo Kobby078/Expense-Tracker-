@@ -14,6 +14,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import type { Expense } from '@/data/example-expenses';
 import { useTheme } from '@/hooks/use-theme';
+import { getTodayLocalDate, isValidLocalDateString } from '@/utils/local-date';
 
 type AddExpenseModalProps = {
   visible: boolean;
@@ -36,6 +37,7 @@ export function AddExpenseModal({
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [amountText, setAmountText] = useState('');
+  const [dateText, setDateText] = useState(getTodayLocalDate());
   const [error, setError] = useState('');
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
@@ -50,6 +52,7 @@ export function AddExpenseModal({
       setName(expenseToEdit.name);
       setCategory(expenseToEdit.category);
       setAmountText(String(expenseToEdit.amount));
+      setDateText(expenseToEdit.date);
       setError('');
       return;
     }
@@ -57,6 +60,7 @@ export function AddExpenseModal({
     setName('');
     setCategory('');
     setAmountText('');
+    setDateText(getTodayLocalDate());
     setError('');
   }, [visible, expenseToEdit]);
 
@@ -64,6 +68,7 @@ export function AddExpenseModal({
     setName('');
     setCategory('');
     setAmountText('');
+    setDateText(getTodayLocalDate());
     setError('');
     setIsConfirmingDelete(false);
   }
@@ -76,6 +81,7 @@ export function AddExpenseModal({
   function handleSave() {
     const trimmedName = name.trim();
     const trimmedCategory = category.trim();
+    const trimmedDate = dateText.trim();
     const amount = Number(amountText);
 
     if (trimmedName.length === 0) {
@@ -93,11 +99,17 @@ export function AddExpenseModal({
       return;
     }
 
+    if (!isValidLocalDateString(trimmedDate)) {
+      setError('Enter a valid date as YYYY-MM-DD.');
+      return;
+    }
+
     onSave({
       id: expenseToEdit?.id ?? String(Date.now()),
       name: trimmedName,
       category: trimmedCategory,
       amount,
+      date: trimmedDate,
     });
 
     clearForm();
@@ -180,6 +192,21 @@ export function AddExpenseModal({
               placeholderTextColor={theme.textSecondary}
               style={inputStyle}
               keyboardType="decimal-pad"
+            />
+          </View>
+
+          <View style={styles.field}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Date (YYYY-MM-DD)
+            </ThemedText>
+            <TextInput
+              value={dateText}
+              onChangeText={setDateText}
+              placeholder="e.g. 2026-10-15"
+              placeholderTextColor={theme.textSecondary}
+              style={inputStyle}
+              autoCapitalize="none"
+              autoCorrect={false}
             />
           </View>
 

@@ -10,6 +10,7 @@ import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useExpenses } from '@/context/expenses-context';
 import { MONTHLY_BUDGET, STARTING_BALANCE, type Expense } from '@/data/example-expenses';
 import { useTheme } from '@/hooks/use-theme';
+import { getCurrentYearMonth, isExpenseInYearMonth } from '@/utils/local-date';
 
 const RECENT_EXPENSE_COUNT = 3;
 
@@ -29,10 +30,22 @@ export default function HomeScreen() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
 
-  const recentExpenses = expenses.slice(0, RECENT_EXPENSE_COUNT);
-  const totalSpent = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const currentBalance = STARTING_BALANCE - totalSpent;
-  const budgetPercent = Math.min(100, (totalSpent / MONTHLY_BUDGET) * 100);
+  // Copy + sort by real date (newest first). Same-day rows keep Context order.
+  const recentExpenses = expenses
+    .map((expense, index) => ({ expense, index }))
+    .sort((a, b) => {
+      const byDate = b.expense.date.localeCompare(a.expense.date);
+      return byDate !== 0 ? byDate : a.index - b.index;
+    })
+    .slice(0, RECENT_EXPENSE_COUNT)
+    .map(({ expense }) => expense);
+  const currentYearMonth = getCurrentYearMonth();
+  const spentThisMonth = expenses
+    .filter((expense) => isExpenseInYearMonth(expense.date, currentYearMonth))
+    .reduce((sum, expense) => sum + expense.amount, 0);
+  const totalSpentAllTime = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const currentBalance = STARTING_BALANCE - totalSpentAllTime;
+  const budgetPercent = Math.min(100, (spentThisMonth / MONTHLY_BUDGET) * 100);
 
   function closeForm() {
     setIsFormOpen(false);
@@ -103,7 +116,7 @@ export default function HomeScreen() {
               <ThemedText type="small" themeColor="textSecondary">
                 Spent this month
               </ThemedText>
-              <ThemedText type="subtitle">{formatCurrency(totalSpent)}</ThemedText>
+              <ThemedText type="subtitle">{formatCurrency(spentThisMonth)}</ThemedText>
             </ThemedView>
           </ThemedView>
 
@@ -111,7 +124,7 @@ export default function HomeScreen() {
             <ThemedView type="backgroundElement" style={styles.budgetHeader}>
               <ThemedText type="smallBold">Monthly budget</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {formatCurrency(totalSpent)} / {formatCurrency(MONTHLY_BUDGET)}
+                {formatCurrency(spentThisMonth)} / {formatCurrency(MONTHLY_BUDGET)}
               </ThemedText>
             </ThemedView>
             <View style={[styles.progressTrack, { backgroundColor: theme.backgroundSelected }]}>

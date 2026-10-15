@@ -48,18 +48,33 @@ function getDisplayedExpenses(
     return matchesSearch && matchesCategory;
   });
 
-  const sorted = [...filtered];
+  // Keep original indexes so same-day rows preserve existing relative order.
+  // Do not treat expense id as a timestamp.
+  const indexed = filtered.map((expense, index) => ({ expense, index }));
 
-  if (sortOption === 'oldest') {
-    sorted.reverse();
+  if (sortOption === 'newest') {
+    indexed.sort((a, b) => {
+      const byDate = b.expense.date.localeCompare(a.expense.date);
+      return byDate !== 0 ? byDate : a.index - b.index;
+    });
+  } else if (sortOption === 'oldest') {
+    indexed.sort((a, b) => {
+      const byDate = a.expense.date.localeCompare(b.expense.date);
+      return byDate !== 0 ? byDate : a.index - b.index;
+    });
   } else if (sortOption === 'highest') {
-    sorted.sort((a, b) => b.amount - a.amount);
+    indexed.sort((a, b) => {
+      const byAmount = b.expense.amount - a.expense.amount;
+      return byAmount !== 0 ? byAmount : a.index - b.index;
+    });
   } else if (sortOption === 'lowest') {
-    sorted.sort((a, b) => a.amount - b.amount);
+    indexed.sort((a, b) => {
+      const byAmount = a.expense.amount - b.expense.amount;
+      return byAmount !== 0 ? byAmount : a.index - b.index;
+    });
   }
 
-  // 'newest' keeps Context order (already newest first)
-  return sorted;
+  return indexed.map(({ expense }) => expense);
 }
 
 export default function TransactionsScreen() {
