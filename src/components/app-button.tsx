@@ -4,7 +4,12 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-type AppButtonVariant = 'primary' | 'secondary' | 'destructive' | 'destructiveFilled';
+type AppButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'destructive'
+  | 'destructiveFilled'
+  | 'emphasis';
 
 type AppButtonProps = {
   label: string;
@@ -43,6 +48,11 @@ export function AppButton({
     backgroundColor = theme.danger;
     borderColor = theme.danger;
     borderWidth = 1;
+    textColor = '#ffffff';
+  } else if (variant === 'emphasis') {
+    backgroundColor = theme.link;
+    borderColor = theme.link;
+    borderWidth = 0;
     textColor = '#ffffff';
   }
 

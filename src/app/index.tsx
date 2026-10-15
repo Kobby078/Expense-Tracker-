@@ -131,6 +131,9 @@ export default function HomeScreen() {
                 {formatCurrency(spentThisMonth)} / {formatCurrency(MONTHLY_BUDGET)}
               </ThemedText>
             </ThemedView>
+            <ThemedText type="small" themeColor="textSecondary">
+              {Math.round(budgetPercent)}% used
+            </ThemedText>
             <View style={[styles.progressTrack, { backgroundColor: theme.backgroundSelected }]}>
               <View
                 style={[
@@ -143,7 +146,7 @@ export default function HomeScreen() {
 
           <AppButton
             label="Add Expense"
-            variant="primary"
+            variant="emphasis"
             onPress={handleOpenAdd}
             accessibilityLabel="Add expense"
           />

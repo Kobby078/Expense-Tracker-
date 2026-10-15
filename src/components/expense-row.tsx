@@ -25,7 +25,7 @@ export function ExpenseRow({ expense, onPress }: ExpenseRowProps) {
           <ThemedText type="small" themeColor="textSecondary">
             {expense.category}
           </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
+          <ThemedText type="small" themeColor="textSecondary" style={styles.date}>
             {expense.date}
           </ThemedText>
         </View>
@@ -50,7 +50,13 @@ const styles = StyleSheet.create({
     paddingRight: Spacing.two,
     gap: Spacing.half,
   },
+  date: {
+    fontSize: 12,
+    lineHeight: 16,
+    opacity: 0.85,
+  },
   pressed: {
     opacity: 0.7,
   },
 });
+
