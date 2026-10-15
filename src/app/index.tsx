@@ -10,6 +10,7 @@ import { ExpenseRow } from '@/components/expense-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useAuth } from '@/context/auth-context';
 import { useBudget } from '@/context/budget-context';
 import { useExpenses } from '@/context/expenses-context';
 import { STARTING_BALANCE, type Expense } from '@/data/example-expenses';
@@ -26,12 +27,14 @@ export default function HomeScreen() {
     bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
   };
   const theme = useTheme();
+  const { signOut } = useAuth();
   const { expenses, isLoaded, upsertExpense, deleteExpense } = useExpenses();
   const { monthlyBudget, isBudgetLoaded, setMonthlyBudget } = useBudget();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [isBudgetFormOpen, setIsBudgetFormOpen] = useState(false);
+  const [signOutError, setSignOutError] = useState('');
 
   // Copy + sort by real date (newest first). Same-day rows keep Context order.
   const recentExpenses = expenses
@@ -82,6 +85,15 @@ export default function HomeScreen() {
     setIsBudgetFormOpen(false);
   }
 
+  async function handleSignOut() {
+    setSignOutError('');
+    const result = await signOut();
+
+    if (result.error) {
+      setSignOutError(result.error);
+    }
+  }
+
   const contentPlatformStyle = Platform.select({
     android: {
       paddingTop: insets.top,
@@ -118,6 +130,17 @@ export default function HomeScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               Overview of your spending.
             </ThemedText>
+            <AppButton
+              label="Sign out"
+              variant="secondary"
+              onPress={handleSignOut}
+              accessibilityLabel="Sign out"
+            />
+            {signOutError.length > 0 ? (
+              <ThemedText type="small" style={{ color: theme.danger }}>
+                {signOutError}
+              </ThemedText>
+            ) : null}
           </View>
 
           <ThemedView style={styles.summaryRow}>
