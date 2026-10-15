@@ -16,9 +16,11 @@ import { FilterChip } from '@/components/filter-chip';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useCategories } from '@/context/categories-context';
 import { useExpenses } from '@/context/expenses-context';
 import type { Expense } from '@/data/example-expenses';
 import { useTheme } from '@/hooks/use-theme';
+import { categoriesMatch, mergeCategoryNames } from '@/utils/category-name';
 
 type SortOption = 'newest' | 'oldest' | 'highest' | 'lowest';
 
@@ -44,7 +46,8 @@ function getDisplayedExpenses(
       expense.name.toLowerCase().includes(normalizedQuery) ||
       expense.category.toLowerCase().includes(normalizedQuery);
 
-    const matchesCategory = activeCategory === 'All' || expense.category === activeCategory;
+    const matchesCategory =
+      activeCategory === 'All' || categoriesMatch(expense.category, activeCategory);
 
     return matchesSearch && matchesCategory;
   });
@@ -86,6 +89,7 @@ export default function TransactionsScreen() {
   };
   const theme = useTheme();
   const { expenses, isLoaded, upsertExpense, deleteExpense } = useExpenses();
+  const { categories: managedCategories } = useCategories();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
@@ -93,12 +97,19 @@ export default function TransactionsScreen() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortOption, setSortOption] = useState<SortOption>('newest');
 
+  const expenseCategories = expenses.map((expense) => expense.category);
   const categories = [
     'All',
-    ...Array.from(new Set(expenses.map((expense) => expense.category))).sort(),
+    ...mergeCategoryNames(managedCategories, expenseCategories).sort((a, b) =>
+      a.localeCompare(b)
+    ),
   ];
 
-  const activeCategory = categories.includes(selectedCategory) ? selectedCategory : 'All';
+  const activeCategory =
+    selectedCategory === 'All' ||
+    categories.some((category) => categoriesMatch(category, selectedCategory))
+      ? selectedCategory
+      : 'All';
   const displayedExpenses = getDisplayedExpenses(
     expenses,
     searchQuery,

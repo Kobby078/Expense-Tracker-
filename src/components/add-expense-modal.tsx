@@ -11,11 +11,15 @@ import {
 } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
+import { FilterChip } from '@/components/filter-chip';
+import { ManageCategoriesModal } from '@/components/manage-categories-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useCategories } from '@/context/categories-context';
 import type { Expense } from '@/data/example-expenses';
 import { useTheme } from '@/hooks/use-theme';
+import { categoriesMatch, mergeCategoryNames } from '@/utils/category-name';
 import { getTodayLocalDate, isValidLocalDateString } from '@/utils/local-date';
 
 type AddExpenseModalProps = {
@@ -34,6 +38,7 @@ export function AddExpenseModal({
   onDelete,
 }: AddExpenseModalProps) {
   const theme = useTheme();
+  const { categories, isCategoriesLoaded } = useCategories();
   const isEditing = expenseToEdit !== null;
 
   const [name, setName] = useState('');
@@ -42,6 +47,12 @@ export function AddExpenseModal({
   const [dateText, setDateText] = useState(getTodayLocalDate());
   const [error, setError] = useState('');
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
+
+  const selectableCategories = mergeCategoryNames(
+    categories,
+    category.length > 0 ? [category] : []
+  );
 
   useEffect(() => {
     if (!visible) {
@@ -49,6 +60,7 @@ export function AddExpenseModal({
     }
 
     setIsConfirmingDelete(false);
+    setIsManageCategoriesOpen(false);
 
     if (expenseToEdit) {
       setName(expenseToEdit.name);
@@ -73,6 +85,7 @@ export function AddExpenseModal({
     setDateText(getTodayLocalDate());
     setError('');
     setIsConfirmingDelete(false);
+    setIsManageCategoriesOpen(false);
   }
 
   function handleCancel() {
@@ -92,7 +105,7 @@ export function AddExpenseModal({
     }
 
     if (trimmedCategory.length === 0) {
-      setError('Please enter a category.');
+      setError('Please choose a category.');
       return;
     }
 
@@ -147,145 +160,169 @@ export function AddExpenseModal({
   ];
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleCancel}>
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable
-          style={[styles.backdrop, { backgroundColor: theme.overlay }]}
-          onPress={handleCancel}
-          accessibilityRole="button"
-          accessibilityLabel="Dismiss expense form"
-        />
-        <ThemedView type="backgroundElement" style={styles.sheet}>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.sheetContent}>
-            <ThemedText type="default">
-              {isEditing ? 'Edit Expense' : 'Add Expense'}
-            </ThemedText>
-
-            <View style={styles.field}>
-              <ThemedText type="small" themeColor="textSecondary">
-                Name
+    <>
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={handleCancel}>
+        <KeyboardAvoidingView
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <Pressable
+            style={[styles.backdrop, { backgroundColor: theme.overlay }]}
+            onPress={handleCancel}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss expense form"
+          />
+          <ThemedView type="backgroundElement" style={styles.sheet}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.sheetContent}>
+              <ThemedText type="default">
+                {isEditing ? 'Edit Expense' : 'Add Expense'}
               </ThemedText>
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="e.g. Lunch"
-                placeholderTextColor={theme.textSecondary}
-                style={inputStyle}
-                autoCapitalize="sentences"
-                accessibilityLabel="Name"
-              />
-            </View>
 
-            <View style={styles.field}>
-              <ThemedText type="small" themeColor="textSecondary">
-                Category
-              </ThemedText>
-              <TextInput
-                value={category}
-                onChangeText={setCategory}
-                placeholder="e.g. Food"
-                placeholderTextColor={theme.textSecondary}
-                style={inputStyle}
-                autoCapitalize="words"
-                accessibilityLabel="Category"
-              />
-            </View>
-
-            <View style={styles.field}>
-              <ThemedText type="small" themeColor="textSecondary">
-                Amount
-              </ThemedText>
-              <TextInput
-                value={amountText}
-                onChangeText={setAmountText}
-                placeholder="e.g. 12.50"
-                placeholderTextColor={theme.textSecondary}
-                style={inputStyle}
-                keyboardType="decimal-pad"
-                accessibilityLabel="Amount"
-              />
-            </View>
-
-            <View style={styles.field}>
-              <ThemedText type="small" themeColor="textSecondary">
-                Date (YYYY-MM-DD)
-              </ThemedText>
-              <TextInput
-                value={dateText}
-                onChangeText={setDateText}
-                placeholder="e.g. 2026-10-15"
-                placeholderTextColor={theme.textSecondary}
-                style={inputStyle}
-                autoCapitalize="none"
-                autoCorrect={false}
-                accessibilityLabel="Date"
-              />
-            </View>
-
-            {error.length > 0 ? (
-              <ThemedText type="small" style={{ color: theme.danger }}>
-                {error}
-              </ThemedText>
-            ) : null}
-
-            <View style={styles.actions}>
-              <AppButton
-                label="Cancel"
-                variant="secondary"
-                onPress={handleCancel}
-                accessibilityLabel="Cancel"
-                style={styles.actionButton}
-              />
-              <AppButton
-                label={isEditing ? 'Save' : 'Add'}
-                variant="primary"
-                onPress={handleSave}
-                accessibilityLabel={isEditing ? 'Save expense' : 'Add expense'}
-                style={styles.actionButton}
-              />
-            </View>
-
-            {isEditing && !isConfirmingDelete ? (
-              <AppButton
-                label="Delete Expense"
-                variant="destructive"
-                onPress={handleDeletePress}
-                accessibilityLabel="Delete expense"
-              />
-            ) : null}
-
-            {isEditing && isConfirmingDelete ? (
-              <View style={styles.confirmDelete}>
+              <View style={styles.field}>
                 <ThemedText type="small" themeColor="textSecondary">
-                  Delete this expense? This cannot be undone.
+                  Name
                 </ThemedText>
-                <View style={styles.actions}>
-                  <AppButton
-                    label="Keep"
-                    variant="secondary"
-                    onPress={() => setIsConfirmingDelete(false)}
-                    accessibilityLabel="Keep expense"
-                    style={styles.actionButton}
-                  />
-                  <AppButton
-                    label="Yes, delete"
-                    variant="destructiveFilled"
-                    onPress={handleConfirmDelete}
-                    accessibilityLabel="Confirm delete expense"
-                    style={styles.actionButton}
-                  />
-                </View>
+                <TextInput
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="e.g. Lunch"
+                  placeholderTextColor={theme.textSecondary}
+                  style={inputStyle}
+                  autoCapitalize="sentences"
+                  accessibilityLabel="Name"
+                />
               </View>
-            ) : null}
-          </ScrollView>
-        </ThemedView>
-      </KeyboardAvoidingView>
-    </Modal>
+
+              <View style={styles.field}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Category
+                </ThemedText>
+                {!isCategoriesLoaded ? (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Loading categories…
+                  </ThemedText>
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={styles.chipRow}>
+                      {selectableCategories.map((item) => (
+                        <FilterChip
+                          key={item}
+                          label={item}
+                          selected={categoriesMatch(category, item)}
+                          onPress={() => setCategory(item)}
+                          accessibilityLabel={`Choose category ${item}`}
+                        />
+                      ))}
+                    </View>
+                  </ScrollView>
+                )}
+                <Pressable
+                  onPress={() => setIsManageCategoriesOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Manage categories"
+                  style={({ pressed }) => [styles.manageLink, pressed && styles.pressed]}>
+                  <ThemedText type="linkPrimary">Manage categories</ThemedText>
+                </Pressable>
+              </View>
+
+              <View style={styles.field}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Amount
+                </ThemedText>
+                <TextInput
+                  value={amountText}
+                  onChangeText={setAmountText}
+                  placeholder="e.g. 12.50"
+                  placeholderTextColor={theme.textSecondary}
+                  style={inputStyle}
+                  keyboardType="decimal-pad"
+                  accessibilityLabel="Amount"
+                />
+              </View>
+
+              <View style={styles.field}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Date (YYYY-MM-DD)
+                </ThemedText>
+                <TextInput
+                  value={dateText}
+                  onChangeText={setDateText}
+                  placeholder="e.g. 2026-10-15"
+                  placeholderTextColor={theme.textSecondary}
+                  style={inputStyle}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  accessibilityLabel="Date"
+                />
+              </View>
+
+              {error.length > 0 ? (
+                <ThemedText type="small" style={{ color: theme.danger }}>
+                  {error}
+                </ThemedText>
+              ) : null}
+
+              <View style={styles.actions}>
+                <AppButton
+                  label="Cancel"
+                  variant="secondary"
+                  onPress={handleCancel}
+                  accessibilityLabel="Cancel"
+                  style={styles.actionButton}
+                />
+                <AppButton
+                  label={isEditing ? 'Save' : 'Add'}
+                  variant="primary"
+                  onPress={handleSave}
+                  accessibilityLabel={isEditing ? 'Save expense' : 'Add expense'}
+                  style={styles.actionButton}
+                />
+              </View>
+
+              {isEditing && !isConfirmingDelete ? (
+                <AppButton
+                  label="Delete Expense"
+                  variant="destructive"
+                  onPress={handleDeletePress}
+                  accessibilityLabel="Delete expense"
+                />
+              ) : null}
+
+              {isEditing && isConfirmingDelete ? (
+                <View style={styles.confirmDelete}>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Delete this expense? This cannot be undone.
+                  </ThemedText>
+                  <View style={styles.actions}>
+                    <AppButton
+                      label="Keep"
+                      variant="secondary"
+                      onPress={() => setIsConfirmingDelete(false)}
+                      accessibilityLabel="Keep expense"
+                      style={styles.actionButton}
+                    />
+                    <AppButton
+                      label="Yes, delete"
+                      variant="destructiveFilled"
+                      onPress={handleConfirmDelete}
+                      accessibilityLabel="Confirm delete expense"
+                      style={styles.actionButton}
+                    />
+                  </View>
+                </View>
+              ) : null}
+            </ScrollView>
+          </ThemedView>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <ManageCategoriesModal
+        visible={isManageCategoriesOpen}
+        onClose={() => setIsManageCategoriesOpen(false)}
+      />
+    </>
   );
 }
 
@@ -309,6 +346,16 @@ const styles = StyleSheet.create({
   field: {
     gap: Spacing.one,
   },
+  chipRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    alignItems: 'center',
+  },
+  manageLink: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    justifyContent: 'center',
+  },
   input: {
     borderWidth: 1,
     borderRadius: Spacing.two,
@@ -326,5 +373,8 @@ const styles = StyleSheet.create({
   },
   confirmDelete: {
     gap: Spacing.two,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

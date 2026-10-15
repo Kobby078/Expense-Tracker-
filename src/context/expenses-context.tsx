@@ -2,12 +2,14 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 
 import { exampleExpenses, type Expense } from '@/data/example-expenses';
 import { loadExpenses, saveExpenses } from '@/data/expense-storage';
+import { categoriesMatch, normalizeCategoryKey } from '@/utils/category-name';
 
 type ExpensesContextValue = {
   expenses: Expense[];
   isLoaded: boolean;
   upsertExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
+  renameCategoryOnExpenses: (from: string, to: string) => void;
 };
 
 const ExpensesContext = createContext<ExpensesContextValue | null>(null);
@@ -61,6 +63,20 @@ export function ExpensesProvider({ children }: ExpensesProviderProps) {
     setExpenses((current) => current.filter((item) => item.id !== id));
   }
 
+  function renameCategoryOnExpenses(from: string, to: string) {
+    const fromKey = normalizeCategoryKey(from);
+
+    if (fromKey.length === 0) {
+      return;
+    }
+
+    setExpenses((current) =>
+      current.map((expense) =>
+        categoriesMatch(expense.category, from) ? { ...expense, category: to } : expense
+      )
+    );
+  }
+
   return (
     <ExpensesContext.Provider
       value={{
@@ -68,6 +84,7 @@ export function ExpensesProvider({ children }: ExpensesProviderProps) {
         isLoaded,
         upsertExpense,
         deleteExpense,
+        renameCategoryOnExpenses,
       }}>
       {children}
     </ExpensesContext.Provider>
