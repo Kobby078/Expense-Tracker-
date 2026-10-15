@@ -4,13 +4,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddExpenseModal } from '@/components/add-expense-modal';
 import { AppButton } from '@/components/app-button';
+import { EditBudgetModal } from '@/components/edit-budget-modal';
 import { EmptyState } from '@/components/empty-state';
 import { ExpenseRow } from '@/components/expense-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useBudget } from '@/context/budget-context';
 import { useExpenses } from '@/context/expenses-context';
-import { MONTHLY_BUDGET, STARTING_BALANCE, type Expense } from '@/data/example-expenses';
+import { STARTING_BALANCE, type Expense } from '@/data/example-expenses';
 import { useTheme } from '@/hooks/use-theme';
 import { formatCurrency } from '@/utils/format-currency';
 import { getCurrentYearMonth, isExpenseInYearMonth } from '@/utils/local-date';
@@ -25,9 +27,11 @@ export default function HomeScreen() {
   };
   const theme = useTheme();
   const { expenses, isLoaded, upsertExpense, deleteExpense } = useExpenses();
+  const { monthlyBudget, isBudgetLoaded, setMonthlyBudget } = useBudget();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [isBudgetFormOpen, setIsBudgetFormOpen] = useState(false);
 
   // Copy + sort by real date (newest first). Same-day rows keep Context order.
   const recentExpenses = expenses
@@ -44,7 +48,9 @@ export default function HomeScreen() {
     .reduce((sum, expense) => sum + expense.amount, 0);
   const totalSpentAllTime = expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const currentBalance = STARTING_BALANCE - totalSpentAllTime;
-  const budgetPercent = Math.min(100, (spentThisMonth / MONTHLY_BUDGET) * 100);
+  const usagePercent = (spentThisMonth / monthlyBudget) * 100;
+  const barWidthPercent = Math.min(100, usagePercent);
+  const isOverBudget = spentThisMonth > monthlyBudget;
 
   function closeForm() {
     setIsFormOpen(false);
@@ -71,6 +77,11 @@ export default function HomeScreen() {
     closeForm();
   }
 
+  function handleSaveBudget(amount: number) {
+    setMonthlyBudget(amount);
+    setIsBudgetFormOpen(false);
+  }
+
   const contentPlatformStyle = Platform.select({
     android: {
       paddingTop: insets.top,
@@ -84,12 +95,12 @@ export default function HomeScreen() {
     },
   });
 
-  if (!isLoaded) {
+  if (!isLoaded || !isBudgetLoaded) {
     return (
       <ThemedView style={styles.loadingScreen}>
         <ActivityIndicator color={theme.text} />
         <ThemedText type="small" themeColor="textSecondary">
-          Loading expenses…
+          Loading…
         </ThemedText>
       </ThemedView>
     );
@@ -128,20 +139,34 @@ export default function HomeScreen() {
             <ThemedView type="backgroundElement" style={styles.budgetHeader}>
               <ThemedText type="smallBold">Monthly budget</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {formatCurrency(spentThisMonth)} / {formatCurrency(MONTHLY_BUDGET)}
+                {formatCurrency(spentThisMonth)} / {formatCurrency(monthlyBudget)}
               </ThemedText>
             </ThemedView>
             <ThemedText type="small" themeColor="textSecondary">
-              {Math.round(budgetPercent)}% used
+              {Math.round(usagePercent)}% used
             </ThemedText>
+            {isOverBudget ? (
+              <ThemedText type="smallBold" style={{ color: theme.danger }}>
+                Over budget
+              </ThemedText>
+            ) : null}
             <View style={[styles.progressTrack, { backgroundColor: theme.backgroundSelected }]}>
               <View
                 style={[
                   styles.progressFill,
-                  { width: `${budgetPercent}%`, backgroundColor: theme.text },
+                  {
+                    width: `${barWidthPercent}%`,
+                    backgroundColor: isOverBudget ? theme.danger : theme.text,
+                  },
                 ]}
               />
             </View>
+            <AppButton
+              label="Edit budget"
+              variant="secondary"
+              onPress={() => setIsBudgetFormOpen(true)}
+              accessibilityLabel="Edit monthly budget"
+            />
           </ThemedView>
 
           <AppButton
@@ -173,6 +198,13 @@ export default function HomeScreen() {
         onCancel={closeForm}
         onSave={handleSaveExpense}
         onDelete={handleDeleteExpense}
+      />
+
+      <EditBudgetModal
+        visible={isBudgetFormOpen}
+        currentBudget={monthlyBudget}
+        onCancel={() => setIsBudgetFormOpen(false)}
+        onSave={handleSaveBudget}
       />
     </>
   );

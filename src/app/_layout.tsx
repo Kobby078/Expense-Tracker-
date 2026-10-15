@@ -4,6 +4,7 @@ import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
+import { BudgetProvider } from '@/context/budget-context';
 import { ExpensesProvider } from '@/context/expenses-context';
 
 SplashScreen.preventAutoHideAsync();
@@ -13,8 +14,10 @@ export default function TabLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <ExpensesProvider>
-        <AnimatedSplashOverlay />
-        <AppTabs />
+        <BudgetProvider>
+          <AnimatedSplashOverlay />
+          <AppTabs />
+        </BudgetProvider>
       </ExpensesProvider>
     </ThemeProvider>
   );
