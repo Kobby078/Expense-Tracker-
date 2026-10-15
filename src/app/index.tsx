@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddExpenseModal } from '@/components/add-expense-modal';
+import { AppButton } from '@/components/app-button';
+import { EmptyState } from '@/components/empty-state';
 import { ExpenseRow } from '@/components/expense-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -10,13 +12,10 @@ import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useExpenses } from '@/context/expenses-context';
 import { MONTHLY_BUDGET, STARTING_BALANCE, type Expense } from '@/data/example-expenses';
 import { useTheme } from '@/hooks/use-theme';
+import { formatCurrency } from '@/utils/format-currency';
 import { getCurrentYearMonth, isExpenseInYearMonth } from '@/utils/local-date';
 
 const RECENT_EXPENSE_COUNT = 3;
-
-function formatCurrency(amount: number) {
-  return `$${amount.toFixed(2)}`;
-}
 
 export default function HomeScreen() {
   const safeAreaInsets = useSafeAreaInsets();
@@ -103,7 +102,12 @@ export default function HomeScreen() {
         contentInset={insets}
         contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
         <ThemedView style={styles.container}>
-          <ThemedText type="subtitle">Expense Tracker</ThemedText>
+          <View style={styles.header}>
+            <ThemedText type="subtitle">Expense Tracker</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Overview of your spending.
+            </ThemedText>
+          </View>
 
           <ThemedView style={styles.summaryRow}>
             <ThemedView type="backgroundElement" style={styles.summaryCard}>
@@ -137,20 +141,26 @@ export default function HomeScreen() {
             </View>
           </ThemedView>
 
+          <AppButton
+            label="Add Expense"
+            variant="primary"
+            onPress={handleOpenAdd}
+            accessibilityLabel="Add expense"
+          />
+
           <ThemedView style={styles.section}>
             <ThemedText type="smallBold">Recent expenses</ThemedText>
-            {recentExpenses.map((expense) => (
-              <ExpenseRow key={expense.id} expense={expense} onPress={handleOpenEdit} />
-            ))}
+            {recentExpenses.length === 0 ? (
+              <EmptyState
+                title="No expenses yet"
+                message="Tap Add Expense to get started."
+              />
+            ) : (
+              recentExpenses.map((expense) => (
+                <ExpenseRow key={expense.id} expense={expense} onPress={handleOpenEdit} />
+              ))
+            )}
           </ThemedView>
-
-          <Pressable
-            onPress={handleOpenAdd}
-            style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}>
-            <ThemedView type="backgroundSelected" style={styles.addButtonInner}>
-              <ThemedText type="smallBold">Add Expense</ThemedText>
-            </ThemedView>
-          </Pressable>
         </ThemedView>
       </ScrollView>
 
@@ -184,7 +194,10 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.four,
-    gap: Spacing.four,
+    gap: Spacing.three,
+  },
+  header: {
+    gap: Spacing.one,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -217,16 +230,5 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.two,
-  },
-  addButton: {
-    alignSelf: 'stretch',
-  },
-  addButtonInner: {
-    alignItems: 'center',
-    paddingVertical: Spacing.three,
-    borderRadius: Spacing.three,
-  },
-  pressed: {
-    opacity: 0.7,
   },
 });

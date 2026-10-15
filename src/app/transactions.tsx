@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -11,7 +10,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddExpenseModal } from '@/components/add-expense-modal';
+import { EmptyState } from '@/components/empty-state';
 import { ExpenseRow } from '@/components/expense-row';
+import { FilterChip } from '@/components/filter-chip';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -156,48 +157,48 @@ export default function TransactionsScreen() {
         contentInset={insets}
         contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
         <ThemedView style={styles.container}>
-          <ThemedText type="subtitle">Transactions</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            Search, filter, and sort your expense history.
-          </ThemedText>
+          <View style={styles.header}>
+            <ThemedText type="subtitle">Transactions</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Search, filter, and sort your expense history.
+            </ThemedText>
+          </View>
 
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search name or category"
-            placeholderTextColor={theme.textSecondary}
-            style={[
-              styles.searchInput,
-              {
-                color: theme.text,
-                backgroundColor: theme.backgroundElement,
-                borderColor: theme.backgroundSelected,
-              },
-            ]}
-            autoCapitalize="none"
-            autoCorrect={false}
-            clearButtonMode="while-editing"
-          />
+          <View style={styles.controlBlock}>
+            <ThemedText type="smallBold">Search</ThemedText>
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search name or category"
+              placeholderTextColor={theme.textSecondary}
+              style={[
+                styles.searchInput,
+                {
+                  color: theme.text,
+                  backgroundColor: theme.backgroundElement,
+                  borderColor: theme.backgroundSelected,
+                },
+              ]}
+              autoCapitalize="none"
+              autoCorrect={false}
+              clearButtonMode="while-editing"
+              accessibilityLabel="Search expenses"
+            />
+          </View>
 
           <View style={styles.controlBlock}>
             <ThemedText type="smallBold">Category</ThemedText>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.chipRow}>
-                {categories.map((category) => {
-                  const isActive = activeCategory === category;
-                  return (
-                    <Pressable
-                      key={category}
-                      onPress={() => setSelectedCategory(category)}
-                      style={({ pressed }) => [pressed && styles.pressed]}>
-                      <ThemedView
-                        type={isActive ? 'backgroundSelected' : 'backgroundElement'}
-                        style={styles.chip}>
-                        <ThemedText type="small">{category}</ThemedText>
-                      </ThemedView>
-                    </Pressable>
-                  );
-                })}
+                {categories.map((category) => (
+                  <FilterChip
+                    key={category}
+                    label={category}
+                    selected={activeCategory === category}
+                    onPress={() => setSelectedCategory(category)}
+                    accessibilityLabel={`Filter by ${category}`}
+                  />
+                ))}
               </View>
             </ScrollView>
           </View>
@@ -206,34 +207,31 @@ export default function TransactionsScreen() {
             <ThemedText type="smallBold">Sort</ThemedText>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.chipRow}>
-                {SORT_OPTIONS.map((option) => {
-                  const isActive = sortOption === option.value;
-                  return (
-                    <Pressable
-                      key={option.value}
-                      onPress={() => setSortOption(option.value)}
-                      style={({ pressed }) => [pressed && styles.pressed]}>
-                      <ThemedView
-                        type={isActive ? 'backgroundSelected' : 'backgroundElement'}
-                        style={styles.chip}>
-                        <ThemedText type="small">{option.label}</ThemedText>
-                      </ThemedView>
-                    </Pressable>
-                  );
-                })}
+                {SORT_OPTIONS.map((option) => (
+                  <FilterChip
+                    key={option.value}
+                    label={option.label}
+                    selected={sortOption === option.value}
+                    onPress={() => setSortOption(option.value)}
+                    accessibilityLabel={`Sort by ${option.label}`}
+                  />
+                ))}
               </View>
             </ScrollView>
           </View>
 
           <ThemedView style={styles.section}>
+            <ThemedText type="smallBold">Results</ThemedText>
             {expenses.length === 0 ? (
-              <ThemedText type="small" themeColor="textSecondary">
-                No expenses yet. Add one from the Home tab.
-              </ThemedText>
+              <EmptyState
+                title="No expenses yet"
+                message="Add one from the Home tab."
+              />
             ) : displayedExpenses.length === 0 ? (
-              <ThemedText type="small" themeColor="textSecondary">
-                No expenses match your search or filters.
-              </ThemedText>
+              <EmptyState
+                title="No matching expenses"
+                message="Try clearing your search or filters."
+              />
             ) : (
               displayedExpenses.map((expense) => (
                 <ExpenseRow key={expense.id} expense={expense} onPress={handleOpenEdit} />
@@ -275,12 +273,16 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.four,
     gap: Spacing.three,
   },
+  header: {
+    gap: Spacing.one,
+  },
   searchInput: {
     borderWidth: 1,
     borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
     fontSize: 16,
+    minHeight: 44,
   },
   controlBlock: {
     gap: Spacing.two,
@@ -288,16 +290,9 @@ const styles = StyleSheet.create({
   chipRow: {
     flexDirection: 'row',
     gap: Spacing.two,
-  },
-  chip: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.three,
+    alignItems: 'center',
   },
   section: {
     gap: Spacing.two,
-  },
-  pressed: {
-    opacity: 0.7,
   },
 });

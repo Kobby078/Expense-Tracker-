@@ -4,11 +4,13 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   TextInput,
   View,
 } from 'react-native';
 
+import { AppButton } from '@/components/app-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -149,125 +151,138 @@ export function AddExpenseModal({
       <KeyboardAvoidingView
         style={styles.overlay}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable style={styles.backdrop} onPress={handleCancel} />
+        <Pressable
+          style={[styles.backdrop, { backgroundColor: theme.overlay }]}
+          onPress={handleCancel}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss expense form"
+        />
         <ThemedView type="backgroundElement" style={styles.sheet}>
-          <ThemedText type="smallBold">{isEditing ? 'Edit Expense' : 'Add Expense'}</ThemedText>
-
-          <View style={styles.field}>
-            <ThemedText type="small" themeColor="textSecondary">
-              Name
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.sheetContent}>
+            <ThemedText type="default">
+              {isEditing ? 'Edit Expense' : 'Add Expense'}
             </ThemedText>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="e.g. Lunch"
-              placeholderTextColor={theme.textSecondary}
-              style={inputStyle}
-              autoCapitalize="sentences"
-            />
-          </View>
 
-          <View style={styles.field}>
-            <ThemedText type="small" themeColor="textSecondary">
-              Category
-            </ThemedText>
-            <TextInput
-              value={category}
-              onChangeText={setCategory}
-              placeholder="e.g. Food"
-              placeholderTextColor={theme.textSecondary}
-              style={inputStyle}
-              autoCapitalize="words"
-            />
-          </View>
-
-          <View style={styles.field}>
-            <ThemedText type="small" themeColor="textSecondary">
-              Amount
-            </ThemedText>
-            <TextInput
-              value={amountText}
-              onChangeText={setAmountText}
-              placeholder="e.g. 12.50"
-              placeholderTextColor={theme.textSecondary}
-              style={inputStyle}
-              keyboardType="decimal-pad"
-            />
-          </View>
-
-          <View style={styles.field}>
-            <ThemedText type="small" themeColor="textSecondary">
-              Date (YYYY-MM-DD)
-            </ThemedText>
-            <TextInput
-              value={dateText}
-              onChangeText={setDateText}
-              placeholder="e.g. 2026-10-15"
-              placeholderTextColor={theme.textSecondary}
-              style={inputStyle}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          {error.length > 0 ? (
-            <ThemedText type="small" style={styles.error}>
-              {error}
-            </ThemedText>
-          ) : null}
-
-          <View style={styles.actions}>
-            <Pressable
-              onPress={handleCancel}
-              style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}>
-              <ThemedView type="backgroundSelected" style={styles.actionButtonInner}>
-                <ThemedText type="smallBold">Cancel</ThemedText>
-              </ThemedView>
-            </Pressable>
-            <Pressable
-              onPress={handleSave}
-              style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}>
-              <ThemedView type="backgroundSelected" style={styles.actionButtonInner}>
-                <ThemedText type="smallBold">Save</ThemedText>
-              </ThemedView>
-            </Pressable>
-          </View>
-
-          {isEditing && !isConfirmingDelete ? (
-            <Pressable
-              onPress={handleDeletePress}
-              style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}>
-              <ThemedText type="smallBold" style={styles.deleteText}>
-                Delete Expense
-              </ThemedText>
-            </Pressable>
-          ) : null}
-
-          {isEditing && isConfirmingDelete ? (
-            <View style={styles.confirmDelete}>
+            <View style={styles.field}>
               <ThemedText type="small" themeColor="textSecondary">
-                Delete this expense? This cannot be undone.
+                Name
               </ThemedText>
-              <View style={styles.actions}>
-                <Pressable
-                  onPress={() => setIsConfirmingDelete(false)}
-                  style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}>
-                  <ThemedView type="backgroundSelected" style={styles.actionButtonInner}>
-                    <ThemedText type="smallBold">Keep</ThemedText>
-                  </ThemedView>
-                </Pressable>
-                <Pressable
-                  onPress={handleConfirmDelete}
-                  style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}>
-                  <ThemedView type="backgroundSelected" style={styles.actionButtonInner}>
-                    <ThemedText type="smallBold" style={styles.deleteText}>
-                      Yes, delete
-                    </ThemedText>
-                  </ThemedView>
-                </Pressable>
-              </View>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                placeholder="e.g. Lunch"
+                placeholderTextColor={theme.textSecondary}
+                style={inputStyle}
+                autoCapitalize="sentences"
+                accessibilityLabel="Name"
+              />
             </View>
-          ) : null}
+
+            <View style={styles.field}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Category
+              </ThemedText>
+              <TextInput
+                value={category}
+                onChangeText={setCategory}
+                placeholder="e.g. Food"
+                placeholderTextColor={theme.textSecondary}
+                style={inputStyle}
+                autoCapitalize="words"
+                accessibilityLabel="Category"
+              />
+            </View>
+
+            <View style={styles.field}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Amount
+              </ThemedText>
+              <TextInput
+                value={amountText}
+                onChangeText={setAmountText}
+                placeholder="e.g. 12.50"
+                placeholderTextColor={theme.textSecondary}
+                style={inputStyle}
+                keyboardType="decimal-pad"
+                accessibilityLabel="Amount"
+              />
+            </View>
+
+            <View style={styles.field}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Date (YYYY-MM-DD)
+              </ThemedText>
+              <TextInput
+                value={dateText}
+                onChangeText={setDateText}
+                placeholder="e.g. 2026-10-15"
+                placeholderTextColor={theme.textSecondary}
+                style={inputStyle}
+                autoCapitalize="none"
+                autoCorrect={false}
+                accessibilityLabel="Date"
+              />
+            </View>
+
+            {error.length > 0 ? (
+              <ThemedText type="small" style={{ color: theme.danger }}>
+                {error}
+              </ThemedText>
+            ) : null}
+
+            <View style={styles.actions}>
+              <AppButton
+                label="Cancel"
+                variant="secondary"
+                onPress={handleCancel}
+                accessibilityLabel="Cancel"
+                style={styles.actionButton}
+              />
+              <AppButton
+                label={isEditing ? 'Save' : 'Add'}
+                variant="primary"
+                onPress={handleSave}
+                accessibilityLabel={isEditing ? 'Save expense' : 'Add expense'}
+                style={styles.actionButton}
+              />
+            </View>
+
+            {isEditing && !isConfirmingDelete ? (
+              <AppButton
+                label="Delete Expense"
+                variant="destructive"
+                onPress={handleDeletePress}
+                accessibilityLabel="Delete expense"
+              />
+            ) : null}
+
+            {isEditing && isConfirmingDelete ? (
+              <View style={styles.confirmDelete}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Delete this expense? This cannot be undone.
+                </ThemedText>
+                <View style={styles.actions}>
+                  <AppButton
+                    label="Keep"
+                    variant="secondary"
+                    onPress={() => setIsConfirmingDelete(false)}
+                    accessibilityLabel="Keep expense"
+                    style={styles.actionButton}
+                  />
+                  <AppButton
+                    label="Yes, delete"
+                    variant="destructiveFilled"
+                    onPress={handleConfirmDelete}
+                    accessibilityLabel="Confirm delete expense"
+                    style={styles.actionButton}
+                  />
+                </View>
+              </View>
+            ) : null}
+          </ScrollView>
         </ThemedView>
       </KeyboardAvoidingView>
     </Modal>
@@ -281,13 +296,15 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   sheet: {
-    gap: Spacing.three,
-    padding: Spacing.four,
+    maxHeight: '90%',
     borderTopLeftRadius: Spacing.four,
     borderTopRightRadius: Spacing.four,
+  },
+  sheetContent: {
+    gap: Spacing.three,
+    padding: Spacing.four,
   },
   field: {
     gap: Spacing.one,
@@ -298,9 +315,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
     fontSize: 16,
-  },
-  error: {
-    color: '#C62828',
+    minHeight: 44,
   },
   actions: {
     flexDirection: 'row',
@@ -309,22 +324,7 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
   },
-  actionButtonInner: {
-    alignItems: 'center',
-    paddingVertical: Spacing.three,
-    borderRadius: Spacing.three,
-  },
-  deleteButton: {
-    alignItems: 'center',
-    paddingVertical: Spacing.two,
-  },
-  deleteText: {
-    color: '#C62828',
-  },
   confirmDelete: {
     gap: Spacing.two,
-  },
-  pressed: {
-    opacity: 0.7,
   },
 });

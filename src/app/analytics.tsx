@@ -2,12 +2,15 @@ import { useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppButton } from '@/components/app-button';
+import { EmptyState } from '@/components/empty-state';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useExpenses } from '@/context/expenses-context';
 import type { Expense } from '@/data/example-expenses';
 import { useTheme } from '@/hooks/use-theme';
+import { formatCurrency } from '@/utils/format-currency';
 import {
   addMonthsToYearMonth,
   formatMonthName,
@@ -15,10 +18,6 @@ import {
   getCurrentYearMonth,
   isExpenseInYearMonth,
 } from '@/utils/local-date';
-
-function formatCurrency(amount: number) {
-  return `$${amount.toFixed(2)}`;
-}
 
 function formatPercent(percent: number) {
   return `${percent.toFixed(1)}%`;
@@ -107,6 +106,7 @@ export default function AnalyticsScreen() {
   const isAtOrPastCurrentMonth = selectedYearMonth >= currentYearMonth;
   const isViewingCurrentMonth = selectedYearMonth === currentYearMonth;
   const previousYearMonth = addMonthsToYearMonth(selectedYearMonth, -1);
+  const monthLabel = formatYearMonthLabel(selectedYearMonth);
 
   const monthExpenses = expenses.filter((expense) =>
     isExpenseInYearMonth(expense.date, selectedYearMonth)
@@ -156,60 +156,52 @@ export default function AnalyticsScreen() {
       contentInset={insets}
       contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
       <ThemedView style={styles.container}>
-        <ThemedText type="subtitle">Analytics</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          Browse spending by month.
-        </ThemedText>
+        <View style={styles.header}>
+          <ThemedText type="subtitle">Analytics</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Browse spending by month.
+          </ThemedText>
+        </View>
 
         <ThemedView type="backgroundElement" style={styles.monthNav}>
+          <ThemedText type="smallBold" style={styles.monthHeading}>
+            {monthLabel}
+          </ThemedText>
+
           <View style={styles.monthNavButtons}>
-            <Pressable
+            <AppButton
+              label="Previous"
+              variant="secondary"
               onPress={goToPreviousMonth}
-              style={({ pressed }) => [styles.navButton, pressed && styles.pressed]}>
-              <ThemedView type="backgroundSelected" style={styles.navButtonInner}>
-                <ThemedText type="smallBold">Previous</ThemedText>
-              </ThemedView>
-            </Pressable>
-            <Pressable
+              accessibilityLabel="Previous month"
+              style={styles.navButton}
+            />
+            <AppButton
+              label="Next"
+              variant="primary"
               onPress={goToNextMonth}
               disabled={isAtOrPastCurrentMonth}
-              style={({ pressed }) => [
-                styles.navButton,
-                pressed && !isAtOrPastCurrentMonth && styles.pressed,
-                isAtOrPastCurrentMonth && styles.navButtonDisabled,
-              ]}>
-              <ThemedView type="backgroundSelected" style={styles.navButtonInner}>
-                <ThemedText
-                  type="smallBold"
-                  themeColor={isAtOrPastCurrentMonth ? 'textSecondary' : 'text'}>
-                  Next
-                </ThemedText>
-              </ThemedView>
-            </Pressable>
+              accessibilityLabel="Next month"
+              style={styles.navButton}
+            />
           </View>
-
-          <ThemedText type="smallBold" style={styles.monthHeading}>
-            {formatYearMonthLabel(selectedYearMonth)}
-          </ThemedText>
 
           {!isViewingCurrentMonth ? (
             <Pressable
               onPress={goToCurrentMonth}
-              style={({ pressed }) => [pressed && styles.pressed]}>
-              <ThemedText type="small" style={styles.thisMonthLink}>
-                This month
-              </ThemedText>
+              accessibilityRole="button"
+              accessibilityLabel="Go to this month"
+              style={({ pressed }) => [styles.thisMonthButton, pressed && styles.pressed]}>
+              <ThemedText type="linkPrimary">This month</ThemedText>
             </Pressable>
           ) : null}
         </ThemedView>
 
         {expenses.length === 0 ? (
-          <ThemedView type="backgroundElement" style={styles.emptyCard}>
-            <ThemedText type="smallBold">No expenses yet</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              Add expenses from the Home tab. You can still move between months above.
-            </ThemedText>
-          </ThemedView>
+          <EmptyState
+            title="No expenses yet"
+            message="Add expenses from the Home tab. You can still move between months above."
+          />
         ) : null}
 
         <ThemedView style={styles.summaryGrid}>
@@ -250,7 +242,7 @@ export default function AnalyticsScreen() {
 
         <ThemedView type="backgroundElement" style={styles.comparisonCard}>
           <ThemedText type="small" themeColor="textSecondary">
-            Compared with {formatMonthName(previousYearMonth)}
+            Compared to last month
           </ThemedText>
           <ThemedText type="smallBold">{comparisonMessage}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
@@ -261,12 +253,10 @@ export default function AnalyticsScreen() {
         <ThemedView style={styles.section}>
           <ThemedText type="smallBold">Spending by category</ThemedText>
           {!hasMonthExpenses ? (
-            <ThemedView type="backgroundElement" style={styles.emptyCard}>
-              <ThemedText type="small" themeColor="textSecondary">
-                No expenses in {formatYearMonthLabel(selectedYearMonth)}. Try another month or add
-                one from Home.
-              </ThemedText>
-            </ThemedView>
+            <EmptyState
+              title={`No expenses in ${monthLabel}`}
+              message="Try another month or add one from Home."
+            />
           ) : (
             categoryTotals.map((item) => {
               const percent = selectedTotal > 0 ? (item.total / selectedTotal) * 100 : 0;
@@ -321,8 +311,11 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.four,
     gap: Spacing.three,
   },
+  header: {
+    gap: Spacing.one,
+  },
   monthNav: {
-    gap: Spacing.two,
+    gap: Spacing.three,
     padding: Spacing.three,
     borderRadius: Spacing.three,
   },
@@ -333,25 +326,14 @@ const styles = StyleSheet.create({
   navButton: {
     flex: 1,
   },
-  navButtonInner: {
-    alignItems: 'center',
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.two,
-  },
-  navButtonDisabled: {
-    opacity: 0.5,
-  },
   monthHeading: {
     textAlign: 'center',
   },
-  thisMonthLink: {
-    textAlign: 'center',
-    color: '#3c87f7',
-  },
-  emptyCard: {
-    gap: Spacing.two,
-    padding: Spacing.three,
-    borderRadius: Spacing.three,
+  thisMonthButton: {
+    alignSelf: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.three,
   },
   summaryGrid: {
     flexDirection: 'row',
@@ -361,12 +343,12 @@ const styles = StyleSheet.create({
   summaryCard: {
     width: '48%',
     flexGrow: 1,
-    gap: Spacing.one,
+    gap: Spacing.two,
     padding: Spacing.three,
     borderRadius: Spacing.three,
   },
   comparisonCard: {
-    gap: Spacing.one,
+    gap: Spacing.two,
     padding: Spacing.three,
     borderRadius: Spacing.three,
   },
